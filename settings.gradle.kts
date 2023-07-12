@@ -1,3 +1,5 @@
+include(":app")
+buildCache { local { removeUnusedEntriesAfterDays = 1 } }
 pluginManagement {
     repositories {
         google()
@@ -10,7 +12,7 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven(url = "https://api.xposed.info")
     }
 }
 rootProject.name = "WeChatRoaming"
-include ':app'
