@@ -2,6 +2,7 @@
 protobuf = "3.23.4"
 coroutine = "1.7.2"
 kotlin = "1.9.0"
+appcomat = "1.6.1"
 
 [plugins]
 kotlin = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
@@ -16,6 +17,9 @@ lsplugin-cmaker = { id = "org.lsposed.lsplugin.cmaker", version = "1.2" }
 
 
 [libraries]
+# AndroidX
+androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcomat" }
+
 xposed = { module = "de.robv.android.xposed:api", version = "82" }
 cxx = { module = "dev.rikka.ndk.thirdparty:cxx", version = "1.2.0" }
 protobuf-kotlin = { module = "com.google.protobuf:protobuf-kotlin-lite", version.ref = "protobuf" }

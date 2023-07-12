@@ -152,6 +152,7 @@ configurations.all {
 
 dependencies {
     compileOnly(libs.xposed)
+    implementation(libs.androidx.appcompat)
     implementation(libs.protobuf.kotlin)
     implementation(libs.protobuf.java)
     compileOnly(libs.protobuf.protoc)
