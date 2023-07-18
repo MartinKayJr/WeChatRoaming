@@ -23,6 +23,7 @@ import java.util.UUID
 //    alias(libs.plugins.lsplugin.cmaker)
 //}
 
+
 @Suppress("DSL_SCOPE_VIOLATION")
 plugins {
     id("build-logic.android.application")
@@ -233,8 +234,8 @@ dependencies {
     implementation(libs.androidx.documentfile)
     implementation(libs.cxx)
     implementation(libs.apache.commons)
-
-//    ksp(projects.libs.ksp)
+    implementation(projects.libs.mmkv)
+    ksp(projects.libs.ksp)
     compileOnly(libs.xposed)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.constraintlayout)

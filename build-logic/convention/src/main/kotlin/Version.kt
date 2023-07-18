@@ -11,14 +11,12 @@ object Version {
 
     const val compileSdkVersion = 33
     const val buildToolsVersion = "33.0.1"
-    const val minSdk = 22
+    const val minSdk = 24
     const val targetSdk = 33
     const val versionName = "1.0.1"
 
     private const val defaultNdkVersion = "25.1.8937393"
     private const val defaultCMakeVersion = "3.22.1"
-
-
 
     fun getNdkVersion(project: Project): String {
         val prop = getLocalProperty(project, "blackspider.override.ndk.version")
