@@ -1,149 +1,220 @@
-import com.google.protobuf.gradle.*
+import com.android.build.gradle.internal.tasks.factory.dependsOn
+import com.android.tools.build.apkzlib.sign.SigningExtension
+import com.android.tools.build.apkzlib.sign.SigningOptions
+import com.android.tools.build.apkzlib.zfile.ZFiles
+import com.android.tools.build.apkzlib.zip.AlignmentRules
+import com.android.tools.build.apkzlib.zip.CompressionMethod
+import com.android.tools.build.apkzlib.zip.ZFile
+import com.android.tools.build.apkzlib.zip.ZFileOptions
+import org.jetbrains.changelog.markdownToHTML
+import java.io.FileInputStream
+import java.security.KeyStore
+import java.security.cert.X509Certificate
+import java.util.UUID
 
+//plugins {
+//    alias(libs.plugins.agp.app)
+//    alias(libs.plugins.kotlin)
+//    alias(libs.plugins.protobuf)
+//    alias(libs.plugins.lsplugin.resopt)
+//    alias(libs.plugins.lsplugin.jgit)
+//    alias(libs.plugins.lsplugin.apksign)
+//    alias(libs.plugins.lsplugin.apktransform)
+//    alias(libs.plugins.lsplugin.cmaker)
+//}
+
+@Suppress("DSL_SCOPE_VIOLATION")
 plugins {
-    alias(libs.plugins.agp.app)
-    alias(libs.plugins.kotlin)
-    alias(libs.plugins.protobuf)
-    alias(libs.plugins.lsplugin.resopt)
-    alias(libs.plugins.lsplugin.jgit)
-    alias(libs.plugins.lsplugin.apksign)
-    alias(libs.plugins.lsplugin.apktransform)
-    alias(libs.plugins.lsplugin.cmaker)
+    id("build-logic.android.application")
+    alias(libs.plugins.changelog)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.license)
+    alias(libs.plugins.serialization)
 }
 
-val appVerCode = jgit.repo()?.commitCount("refs/remotes/origin/master") ?: 0
-val appVerName: String by rootProject
+val currentBuildUuid = UUID.randomUUID().toString()
+println("Current build ID is $currentBuildUuid")
+
+val releaseTime = Common.getReleaseTime()
+println("Current Release Time is $releaseTime")
 
 
-apksign {
-    storeFileProperty = "releaseStoreFile"
-    storePasswordProperty = "releaseStorePassword"
-    keyAliasProperty = "releaseKeyAlias"
-    keyPasswordProperty = "releaseKeyPassword"
-}
+val ccacheExecutablePath = Common.findInPath("ccache")
 
-apktransform {
-    copy {
-        when (it.buildType) {
-            "release" -> file("${it.name}/WeChatRoaming_${appVerName}.apk")
-            else -> null
-        }
-    }
-}
-
-cmaker {
-    default {
-        targets("wechatroaming")
-        abiFilters("armeabi-v7a", "arm64-v8a", "x86")
-        arguments += "-DANDROID_STL=none"
-        cppFlags += "-Wno-c++2b-extensions"
-    }
-
-    buildTypes {
-        arguments += "-DDEBUG_SYMBOLS_PATH=${project.buildDir.absolutePath}/symbols/${it.name}"
-    }
+if (ccacheExecutablePath != null) {
+    println("Found ccache at $ccacheExecutablePath")
+} else {
+    println("No ccache found.")
 }
 
 
 android {
     namespace = "cn.martinkay.wechatroaming"
-    compileSdk = 33
-    buildToolsVersion = "33.0.2"
-    ndkVersion = "25.2.9519653"
-
-    buildFeatures {
-        prefab = true
-        buildConfig = true
-    }
+    ndkVersion = Version.getNdkVersion(project)
 
     defaultConfig {
-        applicationId = "'cn.martinkay.wechatroaming'"
-        minSdk = 24
-        targetSdk = 33  // Target Android T
-        versionCode = appVerCode
-        versionName = appVerName
+        applicationId = "cn.martinkay.wechatroaming"
+        buildConfigField("String", "BUILD_UUID", "\"$currentBuildUuid\"")
+        buildConfigField("long", "BUILD_TIMESTAMP", "${System.currentTimeMillis()}L")
+        buildConfigField("String", "VERSION_DATE_TIME", "\"$releaseTime\"")
+
+        multiDexEnabled = true
+        vectorDrawables.useSupportLibrary = true
+
+        externalNativeBuild {
+            cmake {
+                ccacheExecutablePath?.let {
+                    arguments += listOf(
+                        "-DCMAKE_C_COMPILER_LAUNCHER=$it",
+                        "-DCMAKE_CXX_COMPILER_LAUNCHER=$it",
+                        "-DNDK_CCACHE=$it",
+                        "-DANDROID_CCACHE=$it",
+                    )
+                }
+
+                val flags = arrayOf(
+                    "-Qunused-arguments",
+                    "-fno-rtti",
+                    "-fvisibility=hidden",
+                    "-fvisibility-inlines-hidden",
+                    "-fno-omit-frame-pointer",
+                    "-Wno-unused-value",
+                    "-Wno-unused-variable",
+                    "-Wno-unused-command-line-argument",
+                    "-DMMKV_DISABLE_CRYPT",
+                )
+                cppFlags("-std=c++17", *flags)
+                cFlags("-std=c18", *flags)
+                // 需要在这里添加才能添加到lib中
+                // libwechatroaming.so
+                targets += "wechatroaming"
+            }
+        }
     }
 
+    externalNativeBuild {
+        cmake {
+            path = File(projectDir, "src/main/cpp/CMakeLists.txt")
+            version = Version.getCMakeVersion(project)
+        }
+    }
 
     buildTypes {
-        release {
-            isMinifyEnabled = true
-            isShrinkResources = true
+        getByName("release") {
+//            isDebuggable = true
+            isShrinkResources = false
+            isMinifyEnabled = false
             proguardFiles("proguard-rules.pro")
+            kotlinOptions.suppressWarnings = true
+            val ltoCacheFlags = listOf(
+                "-flto=thin",
+                "-Wl,--thinlto-cache-policy,cache_size_bytes=300m",
+                "-Wl,--thinlto-cache-dir=${buildDir.absolutePath}/.lto-cache",
+            )
+            val releaseFlags = arrayOf(
+                "-ffunction-sections",
+                "-fdata-sections",
+                "-Wl,--gc-sections",
+                "-Oz",
+                "-Wl,--exclude-libs,ALL",
+                "-DNDEBUG",
+            )
+            externalNativeBuild.cmake {
+                // 是-D 不要少了D否则血的教训
+                arguments += "-DBS_VERSION=${defaultConfig.versionName}"
+                cFlags += releaseFlags
+                cppFlags += releaseFlags
+                cFlags += ltoCacheFlags
+                cppFlags += ltoCacheFlags
+            }
+        }
+        getByName("debug") {
+            @Suppress("ChromeOsAbiSupport")
+            ndk.abiFilters += arrayOf("arm64-v8a", "armeabi-v7a")
+            isCrunchPngs = false
+            proguardFiles("proguard-rules.pro")
+            val debugFlags = arrayOf<String>(
+//                "-DMODULE_SIGNATURE=E7A8AEB0A1431D12EB04BF1B7FC31960",
+//                "-DTEST_SIGNATURE",
+            )
+            externalNativeBuild.cmake {
+                // 是-D 不要少了D否则血的教训
+                arguments += "-DBS_VERSION=${Version.versionName}.debug"
+                cFlags += debugFlags
+                cppFlags += debugFlags
+            }
         }
     }
 
 
-    compileOptions {
-        sourceCompatibility(JavaVersion.VERSION_11)
-        targetCompatibility(JavaVersion.VERSION_11)
+    // 避免资源冲突 0x00-0xff
+    androidResources {
+        additionalParameters("--allow-reserved-package-id", "--package-id", "0x39")
     }
 
-    kotlinOptions {
-        jvmTarget = "11"
-        freeCompilerArgs = listOf(
-            "-Xno-param-assertions",
-            "-Xno-call-assertions",
-            "-Xno-receiver-assertions",
-            "-opt-in=kotlin.RequiresOptIn",
-            "-language-version=2.0",
+
+    packagingOptions {
+        resources.excludes.addAll(
+            arrayOf(
+                "META-INF/**",
+                "kotlin/**",
+                "**.bin",
+                "kotlin-tooling-metadata.json"
+            )
         )
     }
 
-    sourceSets {
-        named("main") {
-            proto {
-                srcDir("src/main/proto")
-                include("**/*.proto")
-            }
-        }
+    buildFeatures {
+        prefab = true
+        aidl = true
+        buildConfig = true
+        dataBinding = true
+        viewBinding = true
     }
 
-    packaging {
-        resources {
-            excludes += "**"
-        }
-    }
+    buildFeatures.viewBinding = true
 
     lint {
-        checkReleaseBuilds = false
+        checkDependencies = true
     }
 
-    dependenciesInfo {
-        includeInApk = false
+    kotlinOptions {
+        freeCompilerArgs += listOf(
+            "-Xno-call-assertions",
+            "-Xno-receiver-assertions",
+            "-Xno-param-assertions",
+        )
     }
 
-    androidResources {
-        additionalParameters += arrayOf("--allow-reserved-package-id", "--package-id", "0x23")
+    applicationVariants.all {
+        val variantCapped = name.capitalize()
+        val mergeAssets = tasks.getByName("merge${variantCapped}Assets")
+//        mergeAssets.dependsOn(generateEulaAndPrivacy)
+//        mergeAssets.dependsOn("data${variantCapped}Descriptor")
     }
 
-//    externalNativeBuild {
-//        cmake {
-//            path("src/main/jni/CMakeLists.txt")
-//            version = "3.22.1+"
-//        }
-//    }
+
+}
+
+kotlin {
+    sourceSets.configureEach {
+        kotlin.srcDir("$buildDir/generated/ksp/$name/kotlin/")
+    }
+}
+
+licenseReport {
+    generateCsvReport = false
+    generateHtmlReport = false
+    generateJsonReport = true
+    generateTextReport = false
+
+    copyCsvReportToAssets = false
+    copyHtmlReportToAssets = false
 }
 
 
-protobuf {
-    protoc {
-        artifact = libs.protobuf.protoc.get().toString()
-    }
 
-    generateProtoTasks {
-        all().forEach { task ->
-            task.builtins {
-                id("java") {
-                    option("lite")
-                }
-                id("kotlin") {
-                    option("lite")
-                }
-            }
-        }
-    }
-}
+
 
 configurations.all {
     exclude("org.jetbrains.kotlin", "kotlin-stdlib-jdk7")
@@ -151,7 +222,7 @@ configurations.all {
 }
 
 dependencies {
-    compileOnly(libs.xposed)
+
     implementation(libs.androidx.appcompat)
     implementation(libs.protobuf.kotlin)
     implementation(libs.protobuf.java)
@@ -161,27 +232,238 @@ dependencies {
     implementation(libs.kotlin.coroutines.jdk)
     implementation(libs.androidx.documentfile)
     implementation(libs.cxx)
+    implementation(libs.apache.commons)
+
+//    ksp(projects.libs.ksp)
+    compileOnly(libs.xposed)
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.browser)
+    implementation(libs.lifecycle.livedata)
+    implementation(libs.lifecycle.common)
+    implementation(libs.lifecycle.runtime)
+    implementation(libs.hiddenapibypass)
+    implementation(libs.kotlinx.coroutines)
+    implementation(libs.material)
+    implementation(libs.flexbox)
+    implementation(libs.colorpicker)
+    implementation(libs.material.dialogs.core)
+    implementation(libs.material.dialogs.input)
+    implementation(libs.ezXHelper)
+    // festival title
+    implementation(libs.confetti)
+    implementation(libs.weatherView)
+//    implementation(libs.appcenter.analytics)
+//    implementation(libs.appcenter.crashes)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.sealedEnum.runtime)
+    ksp(libs.sealedEnum.ksp)
+
+    implementation(libs.dexKit)
+    implementation(libs.androidx.swipeRefreshLayout)
+    implementation(libs.flycoTabLayout)
+    implementation(libs.netty)
+    implementation(libs.fastjson)
+    implementation(libs.guava)
+    implementation(libs.androidx.resourceinspection)
+    implementation(libs.apache.commons)
 }
 
-val adbExecutable: String = androidComponents.sdkComponents.adb.get().asFile.absolutePath
 
-val restartBiliBili = task("restartBiliBili").apply {
+val adb: String = androidComponents.sdkComponents.adb.get().asFile.absolutePath
+val packageName = "cn.martinkay.wechatroaming"
+val killBs = tasks.register<Exec>("killBs") {
+    group = "wechatroaming"
+    commandLine(adb, "shell", "am", "force-stop", packageName)
+    isIgnoreExitValue = true
+}
+
+val openBs = tasks.register<Exec>("openBs") {
+    group = "wechatroaming"
+    commandLine(adb, "shell", "am", "start", "$(pm resolve-activity --components $packageName)")
+    isIgnoreExitValue = true
+}
+
+val restartBs = tasks.register<Exec>("restartBs") {
+    group = "wechatroaming"
+    commandLine(adb, "shell", "am", "start", "$(pm resolve-activity --components $packageName)")
+    isIgnoreExitValue = true
+}.dependsOn(killBs)
+
+androidComponents.onVariants { variant ->
+    val variantCapped = variant.name.capitalize()
+    task("install${variantCapped}AndRestartQQ") {
+        group = "wechatroaming"
+        dependsOn(":app:install$variantCapped")
+        finalizedBy(restartBs)
+    }
+//    task("data${variantCapped}Descriptor") {
+//        inputs.file("${buildDir}/reports/licenses/license${variantCapped}Report.json")
+//        outputs.file("${projectDir}/src/main/assets/open_source_licenses.json")
+//        dependsOn("license${variantCapped}Report")
+//
+//        doFirst {
+//            val input = inputs.files.singleFile
+//            val output = outputs.files.singleFile
+//            this.runCatching {
+//                output.writeText(Licenses.transform(input.readText()))
+//            }
+//        }
+//    }
+}
+
+tasks.register<task.ReplaceIcon>("replaceIcon") {
+    group = "wechatroaming"
+    projectDir.set(project.projectDir)
+    commitHash = Common.getGitHeadRefsSuffix(rootProject)
+    config()
+}.also { tasks.preBuild.dependsOn(it) }
+
+tasks.register<Delete>("cleanCxxIntermediates") {
+    group = "wechatroaming"
+    delete(file(".cxx"))
+}.also { tasks.clean.dependsOn(it) }
+
+tasks.register("checkGitSubmodule") {
+    group = "wechatroaming"
+    val projectDir = rootProject.projectDir
     doLast {
-        exec {
-            commandLine(adbExecutable, "shell", "am", "force-stop", "tv.danmaku.bili")
+        listOf(
+            "libs/mmkv/MMKV/Core",
+        ).forEach {
+            val submoduleDir = File(projectDir, it.replace('/', File.separatorChar))
+            if (!submoduleDir.exists()) {
+                throw IllegalStateException(
+                    "submodule dir not found: $submoduleDir" +
+                            "\nPlease run 'git submodule init' and 'git submodule update' manually."
+                )
+            }
         }
-        exec {
-            commandLine(
-                adbExecutable,
-                "shell",
-                "am",
-                "start",
-                "$(pm resolve-activity --components tv.danmaku.bili)"
-            )
+    }
+}.also { tasks.preBuild.dependsOn(it) }
+
+val synthesizeDistReleaseApksCI by tasks.registering {
+    group = "build"
+    // use :app:assembleRelease output apk as input
+    dependsOn(":app:packageRelease")
+    inputs.files(tasks.named("packageRelease").get().outputs.files)
+    val srcApkDir =
+        File(project.buildDir, "outputs" + File.separator + "apk" + File.separator + "release")
+    if (srcApkDir !in tasks.named("packageRelease").get().outputs.files) {
+        val msg = "srcApkDir should be in packageRelease outputs, srcApkDir: $srcApkDir, " +
+                "packageRelease outputs: ${tasks.named("packageRelease").get().outputs.files.files}"
+        logger.error(msg)
+    }
+    // output name format: "BlackSpider-v${defaultConfig.versionName}-${productFlavors.first().name}.apk"
+    val outputAbiVariants = mapOf(
+        "arm32" to arrayOf("armeabi-v7a"),
+        "arm64" to arrayOf("arm64-v8a"),
+        "armAll" to arrayOf("armeabi-v7a", "arm64-v8a"),
+        "universal" to arrayOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+    )
+    val versionName = android.defaultConfig.versionName
+    val outputDir = File(project.buildDir, "outputs" + File.separator + "ci")
+    // declare output files
+    outputAbiVariants.forEach { (variant, _) ->
+        val outputName = "wechatroaming-v${versionName}-${variant}.apk"
+        outputs.file(File(outputDir, outputName))
+    }
+    val signConfig = android.signingConfigs.findByName("release")
+    val minSdk = android.defaultConfig.minSdk!!
+    doLast {
+        if (signConfig == null) {
+            logger.error("Task :app:synthesizeDistReleaseApksCI: No release signing config found, skip signing")
         }
+        val requiredAbiList = listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+        outputDir.mkdir()
+        val options = com.android.tools.build.apkzlib.zip.ZFileOptions().apply {
+            alignmentRule = com.android.tools.build.apkzlib.zip.AlignmentRules.constantForSuffix(".so", 4096)
+            noTimestamps = true
+            autoSortFiles = true
+        }
+        require(srcApkDir.exists()) { "srcApkDir not found: $srcApkDir" }
+        // srcApkDir should have one apk file
+        val srcApkFiles =
+            srcApkDir.listFiles()?.filter { it.isFile && it.name.endsWith(".apk") }
+                ?: emptyList()
+        require(srcApkFiles.size == 1) { "input apk should have one apk file, but found ${srcApkFiles.size}" }
+        val inputApk = srcApkFiles.single()
+        val startTime = System.currentTimeMillis()
+        com.android.tools.build.apkzlib.zip.ZFile.openReadOnly(inputApk).use { srcApk ->
+            // check whether all required abis are in the apk
+            requiredAbiList.forEach { abi ->
+                val path = "lib/$abi/libwechatroaming.so"
+                require(srcApk.get(path) != null) { "input apk should contain $path, but not found" }
+            }
+            outputAbiVariants.forEach { (variant, abis) ->
+                val outputApk = File(outputDir, "wechatroaming-v${versionName}-${variant}.apk")
+                if (outputApk.exists()) {
+                    outputApk.delete()
+                }
+                com.android.tools.build.apkzlib.zfile.ZFiles.apk(outputApk, options).use { dstApk ->
+                    if (signConfig != null) {
+                        val keyStore =
+                            KeyStore.getInstance(signConfig.storeType
+                                ?: KeyStore.getDefaultType())
+                        FileInputStream(signConfig.storeFile!!).use {
+                            keyStore.load(it, signConfig.storePassword!!.toCharArray())
+                        }
+                        val protParam =
+                            KeyStore.PasswordProtection(signConfig.keyPassword!!.toCharArray())
+                        val keyEntry = keyStore.getEntry(signConfig.keyAlias!!, protParam)
+                        val privateKey = keyEntry as KeyStore.PrivateKeyEntry
+                        val signingOptions = com.android.tools.build.apkzlib.sign.SigningOptions.builder()
+                            .setMinSdkVersion(minSdk)
+                            .setV1SigningEnabled(minSdk < 24)
+                            .setV2SigningEnabled(true)
+                            .setKey(privateKey.privateKey)
+                            .setCertificates(privateKey.certificate as X509Certificate)
+                            .setValidation(com.android.tools.build.apkzlib.sign.SigningOptions.Validation.ASSUME_INVALID)
+                            .build()
+                        com.android.tools.build.apkzlib.sign.SigningExtension(signingOptions).register(dstApk)
+                    }
+                    // add input apk to the output apk
+                    srcApk.entries().forEach { entry ->
+                        val cdh = entry.centralDirectoryHeader
+                        val name = cdh.name
+                        val isCompressed =
+                            cdh.compressionInfoWithWait.method != com.android.tools.build.apkzlib.zip.CompressionMethod.STORE
+                        if (name.startsWith("lib/")) {
+                            val abi = name.substring(4).split('/').first()
+                            if (abis.contains(abi)) {
+                                dstApk.add(name, entry.open(), isCompressed)
+                            }
+                        } else if (name.startsWith("META-INF/com/android/")) {
+                            // drop gradle version
+                        } else {
+                            // add all other entries to the output apk
+                            dstApk.add(name, entry.open(), isCompressed)
+                        }
+                    }
+                    dstApk.update()
+                }
+            }
+        }
+        val endTime = System.currentTimeMillis()
+        logger.info("Task :app:synthesizeDistReleaseApksCI: completed in ${endTime - startTime}ms")
     }
 }
 
-afterEvaluate {
-    tasks.getByPath("installDebug").finalizedBy(restartBiliBili)
+
+// 最终用户许可和隐私
+val generateEulaAndPrivacy by tasks.registering {
+    inputs.files("${rootDir}/LICENSE.md", "${rootDir}/PRIVACY_LICENSE.md")
+    outputs.file("${projectDir}/src/main/assets/eulaAndPrivacy.html")
+
+    doFirst {
+        val html = inputs.files.map { markdownToHTML(it.readText()) }
+        outputs.files.forEach {
+            val output = buildString {
+                append("<!DOCTYPE html><head><meta charset=\"UTF-8\"></head><body><html>")
+                html.forEach(::append)
+                append("</body></html>")
+            }.lines().joinToString("")
+            it.writeText(output)
+        }
+    }
 }

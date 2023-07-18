@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- MaiTung Style Theme Attributes -->
+    <attr format="color" name="whiteBackgroundColor" />
+    <attr format="color" name="themeIconColor" />
+    <attr format="color" name="themeColor" />
+    <attr format="color" name="usableColor" />
+    <attr format="color" name="unusableColor" />
+    <attr format="color" name="warnColor" />
+    <attr format="color" name="lineColor" />
+    <attr format="color" name="backgroundColor" />
+    <attr format="color" name="backgroundColorAlphaTitle" />
+</resources>

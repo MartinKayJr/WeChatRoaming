@@ -1,3 +1,26 @@
 <resources>
     <string name="app_name">WeChatRoaming</string>
+    <string name="user">account</string>
+    <string name="title_user">Login</string>
+    <string name="user_info">AccountInfo</string>
+    <string name="user_logout">AccountLogout</string>
+    <string name="discuss_amp_help">Discuss &amp; help</string>
+    <string name="title_github" translatable="false">GitHub</string>
+    <string name="need_help">Need Help?</string>
+
+    <string name="msg_yesno_def_title">Please confirm</string>
+    <string name="msg_yesno_def_message">Are you sure?</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
+    <string name="msg_need_help">If you\'re facing issues while using, you can join the QQ Group ask for help there.\n\nYou can also send suggesstions on our email.</string>
+
+    <string name="show_system_app" translatable="false">显示系统应用</string>
+    <string name="setting" translatable="false">设置</string>
+    <string name="plugin" translatable="false">插件</string>
+    <string name="action_search" translatable="false">搜索</string>
+    <string name="res_inject_success" translatable="false">Resources injection success</string>
+    <string name="control" translatable="false">权限控制</string>
+    <string name="editor_theme" translatable="false">修改样式</string>
+    <string name="selected_editor_theme" translatable="false">已选中 %s. 重启APP以加载样式.</string>
+
 </resources>

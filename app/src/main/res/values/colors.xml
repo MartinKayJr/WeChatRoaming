@@ -1,10 +1,74 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
+
+    <color name="primaryColor">#121212</color>
+    <color name="primaryTextColor">#ffffff</color>
+    <color name="primaryIconColor">#ffffff</color>
+    <color name="completionList_background">?attr/colorPrimaryContainer</color>
+    <color name="completionList_backgroundSelected">?attr/colorPrimaryVariant</color>
+    <color name="rippleHighlightColor">#85121212</color>
+
+    <color name="log_warning">#FF7043</color>
+
+    <color name="diagnostic_error">#f44336</color>
+    <color name="diagnostic_warning">@color/log_warning</color>
+
+    <color name="content_background">#212121</color>
+
+    <color name="green_500">#4caf50</color>
+
+    <color name="tabAction_background">?attr/colorPrimaryContainer</color>
+    <color name="tabAction_text">?attr/colorOnPrimaryContainer</color>
+    <color name="tabAction_icon">?attr/colorPrimary</color>
+
+    <color name="color_toast_background">#90424242</color>
+    <color name="color_picker_default_color">#f44336</color>
+
+
+    <color name="purple_200">#00a0d8</color>
+    <color name="purple_500">#00a0d8</color>
+    <color name="purple_700">#00a0d8</color>
+    <color name="teal_200">#00a0d8</color>
+    <color name="teal_700">#00a0d8</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <color name="colorPrimary">#00a0d8</color>
+    <color name="colorPrimaryDark">#3C3F41</color>
+    <color name="colorAccent">#3C3F41</color>
+
+    <color name="dark.color_primary_dark">#17191c</color>
+    <color name="dark.color_primary">#20242A</color>
+    <color name="dark.color_accent">#1de9b6</color>
+    <color name="dark.color_background">#20242a</color>
+    <color name="dark.color_folder">#02cb6d</color>
+
+    <!-- Text Colors -->
+    <color name="firstTextColor">#FF202124</color>
+    <color name="secondTextColor">#FF3C4043</color>
+    <color name="thirdTextColor">#FF5F6368</color>
+    <color name="whiteTextColor">#FFFFFFFF</color>
+    <color name="rippleColor">#143C4043</color>
+    <color name="divideColor">#FFF0F2F5</color>
+    <color name="nullColor">#00000000</color>
+
+    <color name="defaultThemeBackgroundColor">#FFFFFF</color>
+    <color name="defaultThemeBackgroundColorAlpha80">#CCFFFFFF</color>
+
+    <color name="hostShareSheetActionIconForegroundColorLight">#03081A</color>
+    <color name="hostShareSheetActionIconForegroundColorNight">#8D8D93</color>
+
+    <!-- QQPurify Themes -->
+    <color name="theme_color_blp">#fb7299</color>
+    <color name="theme_color_gol">#ffbb33</color>
+    <color name="theme_color_cag">#0f9d58</color>
+    <color name="theme_color_ftb">#2196f3</color>
+    <color name="theme_color_ghp">#aa66cc</color>
+    <color name="theme_color_mar">#db4437</color>
+    <color name="theme_color_tpo">#ff8833</color>
+    <color name="theme_color_tlg">#009688</color>
+    <color name="theme_color_ryb">#4169e1</color>
+    <color name="theme_color_gap">#673ab7</color>
+
+
 </resources>
