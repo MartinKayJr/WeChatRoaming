@@ -1,3 +1,15 @@
 [submodule "libs/mmkv/MMKV"]
 	path = libs/mmkv/MMKV
 	url = https://github.com/Tencent/MMKV
+[submodule "libs/dexkit/DexKit"]
+	path = libs/dexkit/DexKit
+	url = https://github.com/LuckyPray/DexKit
+[submodule "libs/fmt"]
+	path = libs/fmt
+	url = https://github.com/fmtlib/fmt
+[submodule "libs/Dobby"]
+	path = libs/Dobby
+	url = https://github.com/LSPosed/Dobby
+[submodule "libs/libunwindstack"]
+	path = libs/libunwindstack
+	url = https://github.com/cinit/libunwindstack

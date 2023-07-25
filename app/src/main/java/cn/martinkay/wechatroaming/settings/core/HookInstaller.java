@@ -5,13 +5,14 @@ import android.content.Context;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import cn.martinkay.wechatroaming.gen.AnnotatedFunctionHookEntryList;
 import cn.martinkay.wechatroaming.settings.base.IDynamicHook;
 import cn.martinkay.wechatroaming.settings.base.RuntimeErrorTracer;
 import cn.martinkay.wechatroaming.settings.step.Step;
-import cn.martinkay.wechatroaming.utils.HostInfos;
 import cn.martinkay.wechatroaming.utils.Log;
 import cn.martinkay.wechatroaming.utils.SyncUtils;
-import cn.martinkay.wechatroaming.utils.ToastUtil;
+import cn.martinkay.wechatroaming.utils.dexkit.DexDeobfsBackend;
+import cn.martinkay.wechatroaming.utils.dexkit.DexDeobfsProvider;
 import de.robv.android.xposed.XposedBridge;
 
 
@@ -36,13 +37,13 @@ public class HookInstaller {
                 // java.lang.ExceptionInInitializerError
                 // 通常不会出现, 但是一旦出现会导致极其严重的问题, 整个模块不可用
                 try {
-                    sAnnotatedHooks = cn.martinkay.wechatroaming.gen.AnnotatedFunctionHookEntryList.getAnnotatedFunctionHookEntryList();
+                    sAnnotatedHooks = AnnotatedFunctionHookEntryList.getAnnotatedFunctionHookEntryList();
                 } catch (ExceptionInInitializerError | NoClassDefFoundError e) {
                     sFuncInitException = e;
                     // leave a setting entry for user to report this issue
-//                    sAnnotatedHooks = new IDynamicHook[]{
+                    sAnnotatedHooks = new IDynamicHook[]{
 //                            SettingEntryHook.INSTANCE
-//                    };
+                    };
                     Log.e(e.toString(), e);
                     XposedBridge.log(e);
                 }
@@ -68,8 +69,8 @@ public class HookInstaller {
 
     public static void allowEarlyInit(@NonNull IDynamicHook hook) {
         try {
-            if (/*hook.isTargetProcess() && */hook.isEnabled() && !hook.isPreparationRequired() && !hook.isInitialized()) {
-                hook.initialize(HostInfos.getHostInfo().getContext());
+            if (hook.isTargetProcess() && hook.isEnabled() && !hook.isPreparationRequired() && !hook.isInitialized()) {
+                hook.initialize();
             }
         } catch (Throwable e) {
             if (hook instanceof RuntimeErrorTracer) {
@@ -92,18 +93,18 @@ public class HookInstaller {
 //        final CustomDialog[] pDialog = new CustomDialog[1];
         Throwable err = null;
         boolean isSuccessful = true;
-//        DexDeobfsProvider.INSTANCE.enterDeobfsSection();
-//        try (DexDeobfsBackend backend = DexDeobfsProvider.INSTANCE.getCurrentBackend()) {
-//            if (hook.isPreparationRequired()) {
-//                Step[] steps = hook.makePreparationSteps();
-//                if (steps != null) {
-//                    for (Step s : steps) {
-//                        if (s.isDone()) {
-//                            continue;
-//                        }
-//                        // TODO: 2022-08-26 add batch init
-//                        final String name = s.getDescription();
-//                        SyncUtils.runOnUiThread(() -> {
+        DexDeobfsProvider.INSTANCE.enterDeobfsSection();
+        try (DexDeobfsBackend backend = DexDeobfsProvider.INSTANCE.getCurrentBackend()) {
+            if (hook.isPreparationRequired()) {
+                Step[] steps = hook.makePreparationSteps();
+                if (steps != null) {
+                    for (Step s : steps) {
+                        if (s.isDone()) {
+                            continue;
+                        }
+                        // TODO: 2022-08-26 add batch init
+                        final String name = s.getDescription();
+                        SyncUtils.runOnUiThread(() -> {
 //                            if (pDialog[0] == null) {
 //                                pDialog[0] = CustomDialog.createFailsafe(context);
 //                                pDialog[0].setCancelable(false);
@@ -112,32 +113,32 @@ public class HookInstaller {
 //                                pDialog[0].show();
 //                            }
 //                            pDialog[0].setMessage("QAuxiliary " + BuildConfig.VERSION_NAME + " 正在初始化:\n" + name + "\n每个类一般不会超过一分钟");
-//                        });
-//                        s.step();
-//                    }
-//                }
-//            }
-//        } catch (Throwable stepErr) {
-//            DexDeobfsProvider.INSTANCE.exitDeobfsSection();
-//            if (hook instanceof RuntimeErrorTracer) {
-//                ((RuntimeErrorTracer) hook).traceError(stepErr);
-//            }
-//            err = stepErr;
-//            isSuccessful = false;
-//        }
+                        });
+                        s.step();
+                    }
+                }
+            }
+        } catch (Throwable stepErr) {
+            DexDeobfsProvider.INSTANCE.exitDeobfsSection();
+            if (hook instanceof RuntimeErrorTracer) {
+                ((RuntimeErrorTracer) hook).traceError(stepErr);
+            }
+            err = stepErr;
+            isSuccessful = false;
+        }
         if (isSuccessful) {
             if (hook.isTargetProcess()) {
                 boolean success = false;
                 try {
-                    success = hook.initialize(HostInfos.getHostInfo().getContext());
+                    success = hook.initialize();
                 } catch (Throwable ex) {
                     err = ex;
                 }
                 if (!success) {
-                    SyncUtils.runOnUiThread(() -> ToastUtil.makeToast(context, "初始化失败", ToastUtil.LENGTH_SHORT));
+//                    SyncUtils.runOnUiThread(() -> Toasts.error(context, "初始化失败"));
                 }
             }
-            SyncUtils.requestInitHook(HookInstaller.getHookIndex(hook));
+            SyncUtils.requestInitHook(HookInstaller.getHookIndex(hook), hook.getTargetProcesses());
         }
         if (err != null) {
             Throwable finalErr = err;
@@ -150,6 +151,9 @@ public class HookInstaller {
 //        }
     }
 
+    public static void restartToTakeEffect(@Nullable Context context) {
+//        Toasts.info(context, "重启 " + HostInfo.getAppName() + " 生效");
+    }
 
     public static Step[] stepsOf(@Nullable Step[] a, @Nullable Step[] b) {
         if (a == null) {

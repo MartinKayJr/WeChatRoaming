@@ -28,7 +28,7 @@ public class HookApplication extends XC_MethodHook {
         String tip = "包名不匹配，应用名为 = " + label + ",包名为" + lpparam.packageName;
 
         if (!TextUtils.isEmpty(hookPackage) && hookPackage.contains(lpparam.packageName)) {
-            StartupHook.execStartupInit(context);
+            StartupHook.execStartupInit(context, param.thisObject, null, false);
             tip =
                     "包名匹配，执行hook成功，应用名为=" + label + ",包名为" + lpparam.packageName;
         }

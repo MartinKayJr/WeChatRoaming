@@ -3,4 +3,9 @@
 
     <item type="id" name="tag_searchResultItem" />
     <item type="id" name="fragmentMainRecyclerView"/>
+
+    <item name="mainV2_menuItem_toggleDesktopIcon" type="id" />
+
+    <item type="id" name="btn_allow" />
+    <item type="id" name="btn_deny" />
 </resources>

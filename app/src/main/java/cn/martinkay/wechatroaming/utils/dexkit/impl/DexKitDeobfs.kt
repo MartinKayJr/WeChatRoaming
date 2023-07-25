@@ -1,8 +1,8 @@
 package cn.martinkay.wechatroaming.utils.dexkit.impl
 
-import cn.martinkay.wechatroaming.utils.HostInfos
 import cn.martinkay.wechatroaming.utils.Log
 import cn.martinkay.wechatroaming.utils.dexkit.*
+import cn.martinkay.wechatroaming.utils.host.hostInfo
 import io.luckypray.dexkit.DexKitBridge
 import io.luckypray.dexkit.builder.BatchFindArgs
 import java.util.concurrent.locks.Lock
@@ -57,8 +57,7 @@ class DexKitDeobfs private constructor(
 
             resultMap2.forEach { (key, valueArr) ->
                 val target = DexKitTarget.valueOf(key)
-                val ret =
-                    target.verifyTargetMethod(valueArr.map { DexMethodDescriptor(it.descriptor) })
+                val ret = target.verifyTargetMethod(valueArr.map { DexMethodDescriptor(it.descriptor) })
                 if (ret == null) {
                     valueArr.map { it.descriptor }.forEach(Log::i)
                     Log.e("${valueArr.size} candidates found for " + key + ", none satisfactory, save null.")
@@ -133,7 +132,7 @@ class DexKitDeobfs private constructor(
             object : SharedRefCountResourceImpl<DexKitBridge>() {
                 override fun openResourceInternal(): DexKitBridge {
                     Log.d("open resource: DexKit")
-                    return DexKitBridge.create(HostInfos.getHostInfo().context.applicationInfo.sourceDir)!!
+                    return DexKitBridge.create(hostInfo.application.applicationInfo.sourceDir)!!
                 }
 
                 override fun closeResourceInternal(res: DexKitBridge) {

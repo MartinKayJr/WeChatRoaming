@@ -7,7 +7,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import cn.martinkay.wechatroaming.R;
-import cn.martinkay.wechatroaming.utils.HostInfoImpl;
+import cn.martinkay.wechatroaming.utils.host.HostInfoImpl;
 import cn.martinkay.wechatroaming.utils.hookstatus.HookStatusInit;
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.IXposedHookZygoteInit;
@@ -17,8 +17,12 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage;
 public class HookEntry implements IXposedHookLoadPackage, IXposedHookZygoteInit {
     public static final String PACKAGE_NAME_SELF = "cn.martinkay.wechatroaming";
     //    private static XC_LoadPackage.LoadPackageParam sLoadPackageParam = null;
+    public static final String PACKAGE_NAME_WECHAT = "com.tencent.mm";
     private static StartupParam sInitZygoteStartupParam = null;
+    private static XC_LoadPackage.LoadPackageParam sLoadPackageParam = null;
+
     private static String sModulePath = null;
+    public static String sCurrentPackageName = null;
     /**
      * 由于是多APP HOOK，因此每一个lpp都需要单独管理
      */
@@ -32,6 +36,7 @@ public class HookEntry implements IXposedHookLoadPackage, IXposedHookZygoteInit 
             XposedBridge.log("package id must NOT be 0x7f, reject loading...");
             return;
         }
+        sLoadPackageParam = lpparam;
         // check LSPosed dex-obfuscation
         Class<?> kXposedBridge = XposedBridge.class;
         if (!"de.robv.android.xposed.XposedBridge".equals(kXposedBridge.getName())) {
@@ -39,17 +44,23 @@ public class HookEntry implements IXposedHookLoadPackage, IXposedHookZygoteInit 
             String pkgName = className.substring(0, className.lastIndexOf('.'));
             HybridClassLoader.setObfuscatedXposedApiPackage(pkgName);
         }
-        if (PACKAGE_NAME_SELF.equals(lpparam.packageName)) {
-            HookStatusInit.init(lpparam.classLoader);
-            return;
+        switch (lpparam.packageName) {
+            case PACKAGE_NAME_SELF: {
+                HookStatusInit.init(lpparam.classLoader);
+                break;
+            }
+            case PACKAGE_NAME_WECHAT: {
+                if (sInitZygoteStartupParam == null) {
+                    throw new IllegalStateException("handleLoadPackage: sInitZygoteStartupParam is null");
+                }
+                sCurrentPackageName = lpparam.packageName;
+                // TODO
+                StartupHook.getInstance().initialize(lpparam);
+                break;
+            }
+            default:
+                break;
         }
-        if (sInitZygoteStartupParam == null) {
-            throw new IllegalStateException("handleLoadPackage: sInitZygoteStartupParam is null");
-        }
-        sLoadPackageParamMap.put(lpparam.packageName, lpparam);
-        StartupHook.getInstance().initialize(lpparam);
-
-        // TODO 多模块以及针对模块的HOOK
     }
 
     @Override
@@ -63,14 +74,13 @@ public class HookEntry implements IXposedHookLoadPackage, IXposedHookZygoteInit 
      * <p>
      * Do NOT add @NonNull annotation to this method. *** No kotlin code should be invoked here.*** May cause a crash.
      *
-     * @param packageName application package name
      * @return the LoadPackageParam
      */
-    public static XC_LoadPackage.LoadPackageParam getLoadPackageParam(String packageName) {
-        if (sLoadPackageParamMap == null || sLoadPackageParamMap.size() <= 0) {
+    public static XC_LoadPackage.LoadPackageParam getLoadPackageParam() {
+        if (sLoadPackageParam == null) {
             throw new IllegalStateException("LoadPackageParam is null");
         }
-        return sLoadPackageParamMap.get(packageName);
+        return sLoadPackageParam;
     }
 
     /**

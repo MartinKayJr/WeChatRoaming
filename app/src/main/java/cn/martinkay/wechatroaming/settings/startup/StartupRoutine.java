@@ -1,6 +1,7 @@
 package cn.martinkay.wechatroaming.settings.startup;
 
 import android.annotation.SuppressLint;
+import android.app.Application;
 import android.content.Context;
 import android.os.Build;
 
@@ -10,11 +11,11 @@ import org.lsposed.hiddenapibypass.HiddenApiBypass;
 
 import java.lang.reflect.Field;
 
-import cn.martinkay.wechatroaming.config.ConfigManager;
 import cn.martinkay.wechatroaming.settings.core.MainHook;
-import cn.martinkay.wechatroaming.utils.HostInfos;
+import cn.martinkay.wechatroaming.settings.core.NativeCoreBridge;
 import cn.martinkay.wechatroaming.utils.Initiator;
 import cn.martinkay.wechatroaming.utils.Natives;
+import cn.martinkay.wechatroaming.utils.host.HostInfo;
 
 public class StartupRoutine {
     private StartupRoutine() {
@@ -28,20 +29,20 @@ public class StartupRoutine {
      *
      * @param ctx Application context for host
      */
-    public static void execPostStartupInit(Context ctx) {
+    public static void execPostStartupInit(Context ctx, Object step, String lpwReserved, boolean bReserved) {
         ensureHiddenApiAccess();
         // init all kotlin utils here
         EzXHelperInit.INSTANCE.initZygote(HookEntry.getInitZygoteStartupParam());
-        EzXHelperInit.INSTANCE.initHandleLoadPackage(HookEntry.getLoadPackageParam(ctx.getPackageName()));
+        EzXHelperInit.INSTANCE.initHandleLoadPackage(HookEntry.getLoadPackageParam());
         // resource injection is done somewhere else, do not init it here
         EzXHelperInit.INSTANCE.initAppContext(ctx, false, false);
-        EzXHelperInit.INSTANCE.setLogTag("BlackSpider");
-        HostInfos.init(ctx);
+        EzXHelperInit.INSTANCE.setLogTag("QAuxv");
+        HostInfo.init((Application) ctx);
         Initiator.init(ctx.getClassLoader());
-        ConfigManager.setCtx(ctx);
         Natives.load(ctx);
-        ConfigManager.getDefaultConfig().putString(HostInfos.BS_PACKAGE_NAME, ctx.getPackageName());
-        MainHook.getInstance().performHook(ctx);
+        NativeCoreBridge.initNativeCore(ctx.getPackageName(), Build.VERSION.SDK_INT,
+                HostInfo.getHostInfo().getVersionName(), HostInfo.getHostInfo().getVersionCode());
+        MainHook.getInstance().performHook(ctx, step);
     }
 
 

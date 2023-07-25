@@ -6,6 +6,7 @@ import cn.martinkay.wechatroaming.settings.base.IDynamicHook
 import cn.martinkay.wechatroaming.settings.base.IUiItemAgentProvider
 import cn.martinkay.wechatroaming.settings.base.RuntimeErrorTracer
 import cn.martinkay.wechatroaming.config.ConfigManager
+import cn.martinkay.wechatroaming.settings.base.ITraceableDynamicHook
 import cn.martinkay.wechatroaming.settings.step.DexDeobfStep
 import cn.martinkay.wechatroaming.settings.step.Step
 import cn.martinkay.wechatroaming.utils.Log
@@ -19,7 +20,7 @@ abstract class BaseFunctionHook(
     hookKey: String? = null,
     defaultEnabled: Boolean = false,
     targets: Array<DexKitTarget>? = null
-) : IDynamicHook, IUiItemAgentProvider, RuntimeErrorTracer {
+) : ITraceableDynamicHook, IUiItemAgentProvider {
 
     private val mErrors: ArrayList<Throwable> = ArrayList()
     private var mInitialized = false
@@ -27,6 +28,7 @@ abstract class BaseFunctionHook(
     private val mHookKey: String = hookKey ?: this::class.java.simpleName
     private val mDefaultEnabled: Boolean = defaultEnabled
     private val mDexDeobfIndexes: Array<DexKitTarget>? = targets
+    private val mHookEnableConfigKey: String = "$mHookKey.enabled"
 
     override val isInitialized: Boolean
         get() = mInitialized
@@ -34,12 +36,12 @@ abstract class BaseFunctionHook(
     override val isInitializationSuccessful: Boolean
         get() = mInitializeResult
 
-    override fun initialize(ctx: Context): Boolean {
+    override fun initialize(): Boolean {
         if (mInitialized) {
             return mInitializeResult
         }
         mInitializeResult = try {
-            initOnce(ctx)
+            initOnce()
         } catch (e: Throwable) {
             traceError(e)
             // don't throw exception here, except errors like OutOfMemoryError or StackOverflowError
@@ -54,7 +56,7 @@ abstract class BaseFunctionHook(
     }
 
     @Throws(Exception::class)
-    protected abstract fun initOnce(ctx: Context): Boolean
+    protected abstract fun initOnce(): Boolean
 
     override val runtimeErrors: List<Throwable> = mErrors
 
@@ -77,21 +79,17 @@ abstract class BaseFunctionHook(
             }
         }
 
-    override fun makePreparationSteps(): Array<Step>? =
-        mDexDeobfIndexes?.map {
-            DexDeobfStep(
-                it
-            )
-        }?.toTypedArray()
+    override fun makePreparationSteps(): Array<Step>? = mDexDeobfIndexes?.map { DexDeobfStep(it) }?.toTypedArray()
 
     override val isApplicationRestartRequired = false
 
     override var isEnabled: Boolean
-        get() = enableAllHook() || ConfigManager.getDefaultConfig()
-            .getBooleanOrDefault("$mHookKey.enabled", mDefaultEnabled)
+        get() = enableAllHook() || ConfigManager.getDefaultConfig().getBooleanOrDefault(mHookEnableConfigKey, mDefaultEnabled)
         set(value) {
-            ConfigManager.getDefaultConfig().putBoolean("$mHookKey.enabled", value)
+            ConfigManager.getDefaultConfig().putBoolean(mHookEnableConfigKey, value)
         }
+
+    override val dependentComponents: List<ITraceableDynamicHook>? = null
 
     override fun traceError(e: Throwable) {
         // check if there is already an error with the same error message and stack trace
@@ -108,7 +106,6 @@ abstract class BaseFunctionHook(
     }
 
     private fun enableAllHook(): Boolean {
-        return BuildConfig.DEBUG && ConfigManager.getDefaultConfig()
-            .getBooleanOrDefault("EnableAllHook.enabled", false)
+        return BuildConfig.DEBUG && ConfigManager.getDefaultConfig().getBooleanOrDefault("EnableAllHook.enabled", false)
     }
 }

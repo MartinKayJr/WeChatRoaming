@@ -35,7 +35,7 @@ interface IDynamicHook {
      *
      * @return true if initialization is successful.
      */
-    fun initialize(ctx: Context): Boolean
+    fun initialize(): Boolean
 
     /**
      * Get the errors if anything goes wrong.

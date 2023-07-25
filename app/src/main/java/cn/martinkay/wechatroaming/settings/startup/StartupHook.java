@@ -27,7 +27,7 @@ public class StartupHook {
         return sInstance;
     }
 
-    public static void execStartupInit(Context ctx) {
+    public static void execStartupInit(Context ctx, Object step, String lpwReserved, boolean bReserved) {
         ClassLoader classLoader = ctx.getClassLoader();
         if (classLoader == null) {
             throw new AssertionError("ERROR: classLoader == null");
@@ -39,7 +39,7 @@ public class StartupHook {
         }
         System.setProperty(StartupHook.class.getName(), "true");
         injectClassLoader(classLoader);
-        StartupRoutine.execPostStartupInit(ctx);
+        StartupRoutine.execPostStartupInit(ctx, step, lpwReserved, bReserved);
     }
 
     @SuppressWarnings("JavaReflectionMemberAccess")

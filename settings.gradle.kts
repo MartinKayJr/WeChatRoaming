@@ -47,6 +47,7 @@ gradleEnterprise {
 rootProject.name = "WeChatRoaming"
 include(
     ":app",
+    ":libs:dexkit",
     ":libs:ksp",
     ":libs:mmkv"
 )

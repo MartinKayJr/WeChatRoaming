@@ -4,9 +4,17 @@ import android.content.Context;
 import android.system.Os;
 import android.system.StructUtsname;
 
+import java.lang.reflect.Method;
+
+import cn.martinkay.wechatroaming.config.SafeModeManager;
 import cn.martinkay.wechatroaming.settings.lifecycle.Parasitics;
+import cn.martinkay.wechatroaming.utils.Initiator;
+import cn.martinkay.wechatroaming.utils.LicenseStatus;
 import cn.martinkay.wechatroaming.utils.Log;
 import cn.martinkay.wechatroaming.utils.SyncUtils;
+import cn.martinkay.wechatroaming.utils.host.HostInfo;
+import de.robv.android.xposed.XC_MethodHook;
+import de.robv.android.xposed.XposedBridge;
 
 public class MainHook {
 
@@ -51,19 +59,22 @@ public class MainHook {
 //        }
     }
 
-    public void performHook(Context ctx) {
+    public void performHook(Context ctx, Object step) {
         SyncUtils.initBroadcast(ctx);
         injectLifecycleForProcess(ctx);
+//        if (HostInfo.isQQHD()) {
+//        }
         if (isWindowsSubsystemForAndroid()) {
             Log.w("WSA detected, aggressive resource injection is required to prevent ResourceNotFound crash.");
             // TODO: 2023-1-20 implement aggressive resource injection
         }
-//        boolean safeMode = ConfigManager.getDefaultConfig().getBooleanOrDefault(KEY_SAFE_MODE, false);
-//        if (safeMode) {
-//            LicenseStatus.sDisableCommonHooks = true;
-//            Log.i("Safe mode enabled, disable hooks");
-//        }
-//        if (!safeMode) {
+        boolean safeMode = SafeModeManager.getManager().isEnabled();
+        if (safeMode) {
+            LicenseStatus.sDisableCommonHooks = true;
+            Log.i("Safe mode enabled, disable hooks");
+        }
+        if (!safeMode) {
+//            HookInstaller.allowEarlyInit(DisableQQCrashReportManager.INSTANCE);
 //            HookInstaller.allowEarlyInit(RevokeMsgHook.INSTANCE);
 //            HookInstaller.allowEarlyInit(MuteQZoneThumbsUp.INSTANCE);
 //            HookInstaller.allowEarlyInit(MuteAtAllAndRedPacket.INSTANCE);
@@ -74,14 +85,52 @@ public class MainHook {
 //            HookInstaller.allowEarlyInit(FileRecvRedirect.INSTANCE);
 //            HookInstaller.allowEarlyInit(OptXListViewScrollBar.INSTANCE);
 //            HookInstaller.allowEarlyInit(ForcePadMode.INSTANCE);
-//        }
-        if (!isForegroundStartupForMainProcess(ctx) /*&& !safeMode*/) {
-            // since we are in background, we can do some heavy work without compromising user experience
-            InjectDelayableHooks.stepForMainBackgroundStartup(ctx);
+        }
+        if (SyncUtils.isMainProcess()) {
+//            ConfigItems.removePreviousCacheIfNecessary();
+//            JumpActivityEntryHook.initForJumpActivityEntry(ctx);
+            if (!isForegroundStartupForMainProcess(ctx, step) && !safeMode) {
+                // since we are in background, we can do some heavy work without compromising user experience
+                InjectDelayableHooks.stepForMainBackgroundStartup();
+            }
+            Class<?> loadData = Initiator.load("com/tencent/mobileqq/startup/step/LoadData");
+            if (loadData != null) {
+                Method doStep = null;
+                for (Method method : loadData.getDeclaredMethods()) {
+                    if (method.getReturnType().equals(boolean.class) && method.getParameterTypes().length == 0) {
+                        doStep = method;
+                        break;
+                    }
+                }
+                XposedBridge.hookMethod(doStep, new XC_MethodHook(51) {
+                    @Override
+                    protected void afterHookedMethod(MethodHookParam param) {
+                        if (third_stage_inited) {
+                            return;
+                        }
+//                        Object dir = getStartDirector(param.thisObject);
+                        if (safeMode) {
+//                            SettingEntryHook.INSTANCE.initialize();
+                        } else {
+//                            InjectDelayableHooks.step(dir);
+                        }
+                        third_stage_inited = true;
+                    }
+                });
+            } else {
+                Log.w("LoadData not found, running third stage hooks in background");
+//                InjectDelayableHooks.step(null);
+            }
+        } else {
+//            if (!safeMode && LicenseStatus.hasUserAcceptEula()) {
+//                Object dir = getStartDirector(step);
+//                InjectDelayableHooks.step(dir);
+//            }
         }
     }
 
-    private static boolean isForegroundStartupForMainProcess(Context ctx) {
+
+    private static boolean isForegroundStartupForMainProcess(Context ctx, Object step) {
         // TODO: 2022-12-03 find a way to detect foreground startup
         // XXX: BaseApplicationImpl.sIsBgStartup does not work, always false
         return false;

@@ -17,12 +17,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 
 import cn.martinkay.wechatroaming.BuildConfig;
+import cn.martinkay.wechatroaming.settings.startup.HookEntry;
 import cn.martinkay.wechatroaming.settings.startup.HybridClassLoader;
-import cn.martinkay.wechatroaming.xposed.HookLoader;
 
 public class Natives {
 
@@ -161,11 +163,11 @@ public class Natives {
      * <p>
      * Do not use this directly, use {@link Reflex#invokeNonVirtual(Object, Method, Object[])} instead.
      *
-     * @param declaringClass the class of the method, e.g. "Ljava/lang/String;"
-     * @param methodName     the method name
-     * @param methodSig      the method signature, e.g. "(Ljava/lang/String;)Ljava/lang/String;"
-     * @param obj            the object to invoke the method on, must not be null
-     * @param args           the arguments to pass to the method, may be null if no arguments are passed
+     * @param declaringClass   the class of the method, e.g. "Ljava/lang/String;"
+     * @param methodName the method name
+     * @param methodSig  the method signature, e.g. "(Ljava/lang/String;)Ljava/lang/String;"
+     * @param obj        the object to invoke the method on, must not be null
+     * @param args       the arguments to pass to the method, may be null if no arguments are passed
      * @return the return value of the method
      * @throws InvocationTargetException if the method threw an exception
      */
@@ -195,59 +197,24 @@ public class Natives {
         }
     }
 
-    @SuppressLint("UnsafeDynamicallyLoadedCode")
     public static void load(Context ctx) throws LinkageError {
         try {
             getpagesize();
             return;
         } catch (UnsatisfiedLinkError ignored) {
         }
-        String abi = getAbiForLibrary();
         try {
             Class.forName(HybridClassLoader.getXposedBridgeClassName());
             // in host process
-            try {
-//                String modulePath = HookEntry.getModulePath();
-                String modulePath = HookLoader.getModulePath();
-                if (modulePath != null) {
-                    // try direct memory map
-                    System.load(modulePath + "!/lib/" + abi + "/libblack_spider.so");
-                    Log.d("dlopen by mmap success");
-                }
-            } catch (UnsatisfiedLinkError e1) {
-                throwIfJniError(e1);
-                // direct memory map load failed, extract and dlopen
-                File libname = extractNativeLibrary(ctx, "black_spider", abi);
-                // registerNativeLibEntry(libname.getName());
-                try {
-                    System.load(libname.getAbsolutePath());
-                    Log.d("dlopen by extract success");
-                } catch (UnsatisfiedLinkError e3) {
-                    throwIfJniError(e3);
-                    // give enough information to help debug
-                    // Is this CPU_ABI bad?
-                    Log.e("Build.SDK_INT=" + VERSION.SDK_INT);
-                    Log.e("Build.CPU_ABI is: " + Build.CPU_ABI);
-                    Log.e("Build.CPU_ABI2 is: " + Build.CPU_ABI2);
-                    Log.e("Build.SUPPORTED_ABIS is: " + Arrays.toString(Build.SUPPORTED_ABIS));
-                    Log.e("Build.SUPPORTED_32_BIT_ABIS is: " + Arrays.toString(Build.SUPPORTED_32_BIT_ABIS));
-                    Log.e("Build.SUPPORTED_64_BIT_ABIS is: " + Arrays.toString(Build.SUPPORTED_64_BIT_ABIS));
-                    // check whether this is a 64-bit ART runtime
-                    Log.e("Process.is64bit is: " + Process.is64Bit());
-                    StructUtsname uts = Os.uname();
-                    Log.e("uts.machine is: " + uts.machine);
-                    Log.e("uts.version is: " + uts.version);
-                    Log.e("uts.sysname is: " + uts.sysname);
-                    // panic, this is a bug
-                    throw e3;
-                }
-            }
+            List<String> abis = getAbiForLibrary();
+            String modulePath = HookEntry.getModulePath();
+            loadNativeLibraryInHost(ctx, modulePath, abis);
         } catch (ClassNotFoundException e) {
             // not in host process, ignore
-            System.loadLibrary("black_spider");
+            System.loadLibrary("qauxv");
         }
         getpagesize();
-        File mmkvDir = new File(ctx.getFilesDir(), "bs_mmkv");
+        File mmkvDir = new File(ctx.getFilesDir(), "qa_mmkv");
         if (!mmkvDir.exists()) {
             mmkvDir.mkdirs();
         }
@@ -257,10 +224,53 @@ public class Natives {
             cacheDir.mkdir();
         }
         MMKV.initialize(ctx, mmkvDir.getAbsolutePath(), s -> {
-            // nop, mmkv is attached with libblack_spider.so already
+            // nop, mmkv is attached with libqauxv.so already
         });
         MMKV.mmkvWithID("global_config", MMKV.MULTI_PROCESS_MODE);
         MMKV.mmkvWithID("global_cache", MMKV.MULTI_PROCESS_MODE);
+    }
+
+    @SuppressLint("UnsafeDynamicallyLoadedCode")
+    private static void loadNativeLibraryInHost(Context ctx, String modulePath, List<String> abis) throws UnsatisfiedLinkError {
+        Iterator<String> it = abis.iterator();
+        if (modulePath != null && modulePath.length() > 0 && new File(modulePath).exists()) {
+            // try direct memory map
+            while (it.hasNext()) {
+                String abi = it.next();
+                try {
+                    System.load(modulePath + "!/lib/" + abi + "/libwechatroaming.so");
+                    Log.d("dlopen by mmap success");
+                    return;
+                } catch (UnsatisfiedLinkError e1) {
+                    throwIfJniError(e1);
+                }
+            }
+        }
+        // direct memory map load failed, extract and dlopen
+        File libname = extractNativeLibrary(ctx, "qauxv", abis.get(0));
+        registerNativeLibEntry(libname.getName());
+        try {
+            System.load(libname.getAbsolutePath());
+            Log.d("dlopen by extract success");
+        } catch (UnsatisfiedLinkError e3) {
+            throwIfJniError(e3);
+            // give enough information to help debug
+            // Is this CPU_ABI bad?
+            Log.e("Build.SDK_INT=" + VERSION.SDK_INT);
+            Log.e("Build.CPU_ABI is: " + Build.CPU_ABI);
+            Log.e("Build.CPU_ABI2 is: " + Build.CPU_ABI2);
+            Log.e("Build.SUPPORTED_ABIS is: " + Arrays.toString(Build.SUPPORTED_ABIS));
+            Log.e("Build.SUPPORTED_32_BIT_ABIS is: " + Arrays.toString(Build.SUPPORTED_32_BIT_ABIS));
+            Log.e("Build.SUPPORTED_64_BIT_ABIS is: " + Arrays.toString(Build.SUPPORTED_64_BIT_ABIS));
+            // check whether this is a 64-bit ART runtime
+            Log.e("Process.is64bit is: " + Process.is64Bit());
+            StructUtsname uts = Os.uname();
+            Log.e("uts.machine is: " + uts.machine);
+            Log.e("uts.version is: " + uts.version);
+            Log.e("uts.sysname is: " + uts.sysname);
+            // panic, this is a bug
+            throw e3;
+        }
     }
 
     private static void throwIfJniError(UnsatisfiedLinkError error) {
@@ -270,13 +280,13 @@ public class Natives {
     }
 
     /**
-     * Extract or update native library into "bs_dyn_lib" dir
+     * Extract or update native library into "qa_dyn_lib" dir
      *
-     * @param libraryName library name without "lib" or ".so", eg. "black_spider", "mmkv"
+     * @param libraryName library name without "lib" or ".so", eg. "qauxv", "mmkv"
      */
     static File extractNativeLibrary(Context ctx, String libraryName, String abi) throws IOError {
         String soName = "lib" + libraryName + ".so." + BuildConfig.VERSION_CODE + "." + abi;
-        File dir = new File(ctx.getFilesDir(), "bs_dyn_lib");
+        File dir = new File(ctx.getFilesDir(), "qa_dyn_lib");
         if (!dir.isDirectory()) {
             if (dir.isFile()) {
                 dir.delete();
@@ -321,17 +331,22 @@ public class Natives {
         return soFile;
     }
 
-    public static String getAbiForLibrary() {
+    public static List<String> getAbiForLibrary() {
         String[] supported = Process.is64Bit() ? Build.SUPPORTED_64_BIT_ABIS : Build.SUPPORTED_32_BIT_ABIS;
         if (supported == null || supported.length == 0) {
             throw new IllegalStateException("No supported ABI in this device");
         }
+        List<String> result = new ArrayList<>(2);
         List<String> abis = Arrays.asList("armeabi-v7a", "arm64-v8a", "x86", "x86_64");
         for (String abi : supported) {
             if (abis.contains(abi)) {
-                return abi;
+                result.add(abi);
             }
         }
-        throw new IllegalStateException("No supported ABI in " + Arrays.toString(supported));
+        if (result.isEmpty()) {
+            throw new IllegalStateException("No supported ABI in " + Arrays.toString(supported));
+        } else {
+            return result;
+        }
     }
 }

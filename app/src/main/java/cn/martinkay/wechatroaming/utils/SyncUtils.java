@@ -34,6 +34,7 @@ public class SyncUtils {
 
     private static boolean inited = false;
 
+    private static int myId = 0;
     private static final Collection<BroadcastListener> sBroadcastListeners = Collections
             .synchronizedCollection(new HashSet<>());
     private static final ExecutorService sExecutor = Executors.newCachedThreadPool();
@@ -53,13 +54,20 @@ public class SyncUtils {
         inited = true;
     }
 
-    public static void requestInitHook(int hookId) {
-        Context ctx = HostInfos.getHostInfo().getContext();
+    public static void requestInitHook(int hookId, int process) {
+        Context ctx = HostInfo.getApplication();
         Intent changed = new Intent(HOOK_DO_INIT);
         changed.setPackage(ctx.getPackageName());
-//        initId();
+        initId();
+        changed.putExtra("process", process);
         changed.putExtra("hook", hookId);
         ctx.sendBroadcast(changed);
+    }
+
+    public static void initId() {
+        if (myId == 0) {
+            myId = (int) ((Math.random()) * (Integer.MAX_VALUE / 4));
+        }
     }
 
     public static int getProcessType() {
@@ -96,7 +104,7 @@ public class SyncUtils {
         do {
             try {
                 List<ActivityManager.RunningAppProcessInfo> runningAppProcesses =
-                        ((ActivityManager) HostInfos.getHostInfo().getContext().getSystemService(Context.ACTIVITY_SERVICE))
+                        ((ActivityManager) HostInfo.getApplication().getSystemService(Context.ACTIVITY_SERVICE))
                                 .getRunningAppProcesses();
                 if (runningAppProcesses != null) {
                     for (ActivityManager.RunningAppProcessInfo runningAppProcessInfo : runningAppProcesses) {
@@ -117,7 +125,6 @@ public class SyncUtils {
         } while ("unknown".equals(name));
         return name;
     }
-
 
     @SuppressLint("LambdaLast")
     public static void postDelayed(@NonNull Runnable r, long ms) {
@@ -169,12 +176,14 @@ public class SyncUtils {
             }
             switch (action) {
                 case HOOK_DO_INIT:
+                    int myType = getProcessType();
+                    int targetType = intent.getIntExtra("process", 0);
                     int hookId = intent.getIntExtra("hook", -1);
-                    if (hookId != -1) {
+                    if (hookId != -1 && (myType & targetType) != 0) {
                         IDynamicHook hook = HookInstaller.getHookById(hookId);
                         if (hook != null && hook.isTargetProcess() && !hook.isPreparationRequired()) {
                             try {
-                                hook.initialize(HostInfos.getHostInfo().getContext());
+                                hook.initialize();
                             } catch (Throwable e) {
                                 Log.e(e);
                             }

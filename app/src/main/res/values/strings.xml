@@ -17,10 +17,40 @@
     <string name="show_system_app" translatable="false">显示系统应用</string>
     <string name="setting" translatable="false">设置</string>
     <string name="plugin" translatable="false">插件</string>
-    <string name="action_search" translatable="false">搜索</string>
     <string name="res_inject_success" translatable="false">Resources injection success</string>
     <string name="control" translatable="false">权限控制</string>
     <string name="editor_theme" translatable="false">修改样式</string>
     <string name="selected_editor_theme" translatable="false">已选中 %s. 重启APP以加载样式.</string>
+
+    <string name="ModuleVersion">模块版本</string>
+    <string name="ModuleVersion_tip">更新模块后需要重启目标应用方可生效</string>
+    <string name="ModuleSetting">模块设置</string>
+    <string name="ModuleSetting_tip_1">请在 QQ / TIM 内进行操作</string>
+    <string name="ModuleSetting_tip_2">QQ侧滑 > 设置 > QAuxiliary 即可进入模块设置</string>
+    <string name="ModuleSetting_tip_3">暂不支持 国际版</string>
+    <string name="qq">QQ</string>
+    <string name="tim">TIM</string>
+    <string name="qq_lite">QQ极速版</string>
+    <string name="tip">提示</string>
+    <string name="send_to_ipad">发送到我的iPad</string>
+    <string name="action_search">搜索</string>
+    <string name="action_copy_all">复制全部</string>
+    <string name="action_filter_items">筛选</string>
+    <string name="action_calculate_size">计算大小</string>
+    <string name="action_refresh">刷新</string>
+    <string name="action_share_as_file">以文件分享至其他应用</string>
+    <string name="action_save_as_file">保存为文件</string>
+    <string name="btn_do_not_show_again">不再显示</string>
+    <string name="wsa_warning_dialog_title">警告</string>
+    <string name="wsa_warning_dialog_message">使用前详阅\nQAuxiliary 模块并没有完全适配 Windows Subsystem for Android.\n在 WSA 的 QQ/TIM/… 上使用 QAuxiliary 模块时，如果当前界面位于 QAuxiliary 模块的界面（如模块设置，本模块提供的功能的对话框等），请勿移动、拖拽、放大或缩小本应用的窗口，否则会导致应用崩溃。</string>
+    <string name="cfg_ui_hot_update_description">热更新可以让您在不手动更新 QAuxiliary 模块的情况下自动保持 QAuxiliary 模块为最新版。如果您不希望使用热更新，可以将热更新通道设置为“禁用”。</string>
+    <string name="cfg_ui_hot_update_bug_report_instruction">如果您正在使用老版本 QQ/TIM 且遇到了问题，请积极反馈问题（带上日志以及宿主和模块的版本号），以便我们能够及时修复问题。</string>
+    <string name="cfg_ui_hot_update_channel_btn_disabled">禁用\n禁用热更新</string>
+    <string name="cfg_ui_hot_update_channel_btn_stable">稳定版\n其实就是“推荐的 CI”，通常不会有问题，更新频率在一个多星期左右</string>
+    <string name="cfg_ui_hot_update_channel_btn_beta">Beta\n测试版，可能存在一些功能性问题（如版本不兼容），更新频率一至两天</string>
+    <string name="cfg_ui_hot_update_channel_btn_canary">Canary\n持续集成版，仅供开发者测试，代码未经测试，可能存在严重问题，更新由开发者代码提交触发</string>
+    <string name="github">GitHub</string>
+    <string name="BugCheck">故障排查</string>
+
 
 </resources>

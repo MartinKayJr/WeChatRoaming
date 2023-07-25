@@ -31,6 +31,7 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.license)
     alias(libs.plugins.serialization)
+    alias(libs.plugins.aboutlibraries)
 }
 
 val currentBuildUuid = UUID.randomUUID().toString()
@@ -122,7 +123,7 @@ android {
             )
             externalNativeBuild.cmake {
                 // 是-D 不要少了D否则血的教训
-                arguments += "-DBS_VERSION=${defaultConfig.versionName}"
+                arguments += "-DWECHATROAMING_VERSION=${defaultConfig.versionName}"
                 cFlags += releaseFlags
                 cppFlags += releaseFlags
                 cFlags += ltoCacheFlags
@@ -140,7 +141,7 @@ android {
             )
             externalNativeBuild.cmake {
                 // 是-D 不要少了D否则血的教训
-                arguments += "-DBS_VERSION=${Version.versionName}.debug"
+                arguments += "-DWECHATROAMING_VERSION=${Version.versionName}.debug"
                 cFlags += debugFlags
                 cppFlags += debugFlags
             }
@@ -254,8 +255,8 @@ dependencies {
     // festival title
     implementation(libs.confetti)
     implementation(libs.weatherView)
-//    implementation(libs.appcenter.analytics)
-//    implementation(libs.appcenter.crashes)
+    implementation(libs.appcenter.analytics)
+    implementation(libs.appcenter.crashes)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.sealedEnum.runtime)
     ksp(libs.sealedEnum.ksp)
